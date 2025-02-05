@@ -35,12 +35,18 @@ def preprocess_for_ml_with_color(image, target_size=(512, 512)):
     return normalized
 
 def detect_diatoms(preprocessed_image, confidence_threshold=0.5):
-    # Convert back to uint8 for OpenCV
-    image_uint8 = ((preprocessed_image + 1) * 127.5).astype(np.uint8)
-    
-    # Convert to grayscale
-    gray = cv2.cvtColor(image_uint8, cv2.COLOR_RGB2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    """Detect potential diatoms in the image with validation checks"""
+    try:
+        # Convert back to uint8 for OpenCV
+        image_uint8 = ((preprocessed_image + 1) * 127.5).astype(np.uint8)
+        
+        # Validate image content
+        if image_uint8.mean() < 10 or image_uint8.mean() > 245:
+            raise ValueError("Image appears to be mostly empty or oversaturated")
+            
+        # Convert to grayscale
+        gray = cv2.cvtColor(image_uint8, cv2.COLOR_RGB2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     
     # Use adaptive thresholding
     thresh = cv2.adaptiveThreshold(
@@ -107,8 +113,9 @@ def main():
     st.markdown("""
         <style>
         .stApp {
-            max-width: 1200px;
+            max-width: 100%;
             margin: 0 auto;
+            padding: 1rem;
         }
         .upload-box {
             border: 2px dashed #4CAF50;
@@ -116,6 +123,17 @@ def main():
             padding: 20px;
             text-align: center;
             margin: 20px 0;
+        }
+        /* Custom styles for image containers */
+        .stImage {
+            width: 100% !important;
+            max-width: 600px !important;
+            margin: 0 auto !important;
+        }
+        .stImage > img {
+            width: 100% !important;
+            height: auto !important;
+            object-fit: contain !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -143,14 +161,28 @@ def main():
             image = Image.open(uploaded_file)
             image_array = np.array(image)
             
+            # Validate that this is likely a microscopy image
+            if len(image_array.shape) == 3 and image_array.shape[2] > 3:
+                st.error("This appears to be a special format image, not a standard microscopy image.")
+                return
+                
+            # Add warning for non-microscopy images
+            if image_array.shape[0] < 100 or image_array.shape[1] < 100:
+                st.warning("Image dimensions are unusually small for microscopy. Results may not be accurate.")
+            
             # Create two columns for original and processed images
             col1, col2 = st.columns(2)
             
+            # Calculate aspect ratio for consistent sizing
+            aspect_ratio = image_array.shape[0] / image_array.shape[1]
+            max_width = 600  # Maximum width for each image
+            height = int(max_width * aspect_ratio)
+
             with col1:
                 st.subheader("Original Image")
                 # Normalize original image for display
                 orig_normalized = normalize_for_display(image_array)
-                st.image(orig_normalized, use_column_width=True)
+                st.image(orig_normalized, width=max_width)
             
             with col2:
                 st.subheader("Processed Image")
@@ -165,7 +197,7 @@ def main():
                     result_image = draw_detections(processed_vis, detections)
                     # Final normalization for display
                     result_normalized = normalize_for_display(result_image)
-                    st.image(result_normalized, use_column_width=True)
+                    st.image(result_normalized, width=max_width)
             
             # Show detection results
             st.subheader("Detection Results")
