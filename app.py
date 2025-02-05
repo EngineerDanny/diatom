@@ -36,17 +36,16 @@ def preprocess_for_ml_with_color(image, target_size=(512, 512)):
 
 def detect_diatoms(preprocessed_image, confidence_threshold=0.5):
     """Detect potential diatoms in the image with validation checks"""
-    try:
-        # Convert back to uint8 for OpenCV
-        image_uint8 = ((preprocessed_image + 1) * 127.5).astype(np.uint8)
+    # Convert back to uint8 for OpenCV
+    image_uint8 = ((preprocessed_image + 1) * 127.5).astype(np.uint8)
+    
+    # Validate image content
+    if image_uint8.mean() < 10 or image_uint8.mean() > 245:
+        raise ValueError("Image appears to be mostly empty or oversaturated")
         
-        # Validate image content
-        if image_uint8.mean() < 10 or image_uint8.mean() > 245:
-            raise ValueError("Image appears to be mostly empty or oversaturated")
-            
-        # Convert to grayscale
-        gray = cv2.cvtColor(image_uint8, cv2.COLOR_RGB2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    # Convert to grayscale
+    gray = cv2.cvtColor(image_uint8, cv2.COLOR_RGB2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     
     # Use adaptive thresholding
     thresh = cv2.adaptiveThreshold(
