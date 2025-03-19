@@ -1,2 +1,13 @@
 train/
+test/
 *.csv
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.tif
+*.tiff
+*.bmp
+*.ppm
+*.pgm
+*.pth
